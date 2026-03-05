@@ -2,6 +2,7 @@ import pygame, sys
 from map import Map
 from player import Player
 from building import Building
+from npc import NPC
 
 pygame.init()
 
@@ -19,8 +20,9 @@ font = pygame.font.SysFont(None, 30)
 
 # Objetos
 game_map = Map(width=MAP_WIDTH, height=MAP_HEIGHT, tile_size=TILE_SIZE)
-player = Player(0,0)
+player = Player(x=(MAP_WIDTH // 2 - 1) * TILE_SIZE, y=(MAP_HEIGHT - 7) * TILE_SIZE)
 buildings = []
+npcs = [NPC(game_map.grid) for _ in range(12)]
 
 # Recursos iniciais
 population = 0
@@ -36,15 +38,12 @@ while True:
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
-            # selecionar tipo de construção
             if event.key == pygame.K_1: current_building_type = "house"
             if event.key == pygame.K_2: current_building_type = "farm"
             if event.key == pygame.K_3: current_building_type = "factory"
-            # construir
             if event.key == pygame.K_SPACE:
                 b = Building(player.rect.x, player.rect.y, type=current_building_type)
                 buildings.append(b)
-                # atualizar recursos
                 if b.type == "house": population += 5; money -= 50
                 elif b.type == "farm": food += 20; money -= 30
                 elif b.type == "factory": money += 0
@@ -52,11 +51,16 @@ while True:
     keys = pygame.key.get_pressed()
     player.move(keys, MAP_WIDTH, MAP_HEIGHT)
 
+    for npc in npcs:
+        npc.update()
+
     # desenhar tudo
     screen.fill((0,0,0))
     game_map.draw(screen)
     for building in buildings:
         building.draw(screen)
+    for npc in npcs:
+        npc.draw(screen)
     player.draw(screen)
 
     # mostrar recursos
