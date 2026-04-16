@@ -22,9 +22,8 @@ class Boat:
         self.image  = pygame.transform.scale(raw, (self.boat_w, self.boat_h))
 
         # Posicao inicial fora da tela (sul)
-        screen_h    = 36 * tile_size
-        self.x      = float(BAY_CENTER_X * tile_size - self.boat_w // 2)
-        self.y      = float(screen_h + 10)
+        self.screen_h = 36 * tile_size
+        self.reset_position()
 
         # Destino: meio da agua da baia
         self.target_y = float(STOP_TILE_Y * tile_size - self.boat_h // 2)
@@ -33,20 +32,15 @@ class Boat:
         self.speed     = 2.0
         self.min_speed = 0.3
 
-        # Estado
-        self.state = "sailing"
-
         # Balanco quando atracado
         self.bob_offset = 0.0
         self.bob_dir    = 1
         self.bob_speed  = 0.15
         self.bob_max    = 2.5
 
-        # Rastro de ondas
+        # Partículas
         self.wake_particles = []
         self.wake_timer = 0
-
-        # Splash ao parar
         self.splash_particles = []
         self.splash_done = False
 
@@ -55,6 +49,18 @@ class Boat:
         dark = self.image.copy()
         dark.fill((0, 0, 0, 100), special_flags=pygame.BLEND_RGBA_MULT)
         self.shadow_surf.blit(dark, (0, 0))
+
+    def reset_position(self):
+        """Prepara o barco para uma nova vinda do sul"""
+        self.x = float(BAY_CENTER_X * self.tile_size - self.boat_w // 2)
+        self.y = float(self.screen_h + 100)
+        self.state = "waiting" # Fica em espera até o timer do main disparar
+        self.splash_done = False
+
+    def leave(self):
+        """Ativa a partida do navio"""
+        if self.state == "docked":
+            self.state = "leaving"
 
     def update(self):
         if self.state == "sailing":
@@ -91,6 +97,13 @@ class Boat:
             if abs(self.bob_offset) >= self.bob_max:
                 self.bob_dir *= -1
 
+        elif self.state == "leaving":
+            self.y += self.speed # Move de volta para o sul
+            # Se sumir da tela, entra em espera
+            if self.y > self.screen_h + 150:
+                self.state = "waiting"
+
+        # Atualizar partículas de rastro
         for p in self.wake_particles[:]:
             p["life"] -= 1
             p["r"] += 0.3
@@ -137,21 +150,18 @@ class Boat:
                 self.splash_particles.remove(p)
 
     def draw(self, screen):
-        draw_y = self.y + self.bob_offset
+        if self.state == "waiting":
+            return
 
-        # Rastro de ondas
+        draw_y = self.y + self.bob_offset
+        # Rastro
         for p in self.wake_particles:
             alpha = int(180 * (p["life"] / p["max_life"]))
-            if p["r"] > 0:
-                surf = pygame.Surface((int(p["r"] * 2 + 2), int(p["r"] + 2)), pygame.SRCALPHA)
-                pygame.draw.ellipse(surf, (150, 200, 255, alpha),
-                    (0, 0, int(p["r"] * 2), int(p["r"])))
-                screen.blit(surf, (int(p["x"] - p["r"]), int(p["y"])))
+            surf = pygame.Surface((int(p["r"] * 2 + 2), int(p["r"] + 2)), pygame.SRCALPHA)
+            pygame.draw.ellipse(surf, (150, 200, 255, alpha), (0, 0, int(p["r"] * 2), int(p["r"])))
+            screen.blit(surf, (int(p["x"] - p["r"]), int(p["y"])))
 
-        # Sombra
         screen.blit(self.shadow_surf, (int(self.x) + 4, int(draw_y) + 4))
-
-        # Barco
         screen.blit(self.image, (int(self.x), int(draw_y)))
 
         # Splash
