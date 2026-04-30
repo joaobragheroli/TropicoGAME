@@ -1,12 +1,13 @@
 import pygame
 import sys
 import os
+import subprocess
 
 pygame.init()
 
 WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Menu Principal")
+pygame.display.set_caption("Menu Principal - Tropico Island")
 clock = pygame.time.Clock()
 
 # ─── Função para assets (ESSENCIAL pro .exe) ────────────────────────────────
@@ -17,7 +18,7 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-# ─── Paleta ────────────────────────────────────────────────────────────────
+# ─── Paleta ───────────────────────────────────────────────────────────────────
 GOLD      = (255, 210,  50)
 WHITE     = (255, 255, 255)
 BLACK     = (  0,   0,   0)
@@ -26,7 +27,7 @@ RED_ERR   = (220,  60,  50)
 
 OVERLAY_W = 490
 
-# ─── Fontes ────────────────────────────────────────────────────────────────
+# ─── Fontes ───────────────────────────────────────────────────────────────────
 font_logo   = pygame.font.SysFont("Impact",  64, bold=True)
 font_star   = pygame.font.SysFont("Arial",   22, bold=True)
 font_header = pygame.font.SysFont("Georgia", 18, bold=True)
@@ -36,9 +37,25 @@ font_err    = pygame.font.SysFont("Arial",   13)
 PIXEL_SIZE  = 38
 font_menu   = pygame.font.Font(None, PIXEL_SIZE)
 
-# ─── Background ────────────────────────────────────────────────────────────
-BG_PATH = resource_path("menu/fundo-menu.png")
+# ─── Caminhos ─────────────────────────────────────────────────────────────────
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def find_main():
+    candidates = [
+        os.path.join(THIS_DIR, "..", "Game", "main.py"),
+        os.path.join(THIS_DIR, "Game", "main.py"),
+        os.path.join(THIS_DIR, "main.py"),
+    ]
+    for p in candidates:
+        norm = os.path.normpath(p)
+        if os.path.isfile(norm):
+            return norm
+    return None
+
+GAME_PATH = find_main()
+
+# ─── Background ───────────────────────────────────────────────────────────────
+BG_PATH = resource_path("Menu/fundo-menu.png")
 try:
     bg_raw = pygame.image.load(BG_PATH)
     bg_img = pygame.transform.smoothscale(bg_raw, (WIDTH, HEIGHT))
@@ -46,7 +63,7 @@ except Exception as e:
     print(f"[AVISO] fundo-menu nao carregado: {e}")
     bg_img = None
 
-# ─── Estado ────────────────────────────────────────────────────────────────
+# ─── Estado ──────────────────────────────────────────────────────────────────
 hovered_item = -1
 time_val     = 0.0
 error_msg    = ""
@@ -59,7 +76,7 @@ ITEM_START_Y = 245
 ITEM_STEP    = 58
 LOGO_Y       = (PANEL_TOP - 80) // 2 + 50
 
-# ─── Helpers ───────────────────────────────────────────────────────────────
+# ─── Helpers ─────────────────────────────────────────────────────────────────
 def draw_gradient_rect(surf, rect, top_col, bot_col):
     x, y, w, h = rect
     for i in range(h):
@@ -84,56 +101,94 @@ def draw_logo(surf):
     logo_x = (OVERLAY_W - logo_surf.get_width()) // 2
     surf.blit(shadow_surf, (logo_x + 2, LOGO_Y + 2))
     surf.blit(logo_surf,   (logo_x,     LOGO_Y))
+    line_y = LOGO_Y + logo_surf.get_height() + 8
+    margin = 30
+    pygame.draw.line(surf, GOLD, (margin, line_y), (OVERLAY_W - margin, line_y), 2)
 
 def draw_menu(surf, hovered):
+    hdr_w, hdr_h = 330, 36
+    hdr_x    = (OVERLAY_W - hdr_w) // 2
+    hdr_rect = pygame.Rect(hdr_x, PANEL_TOP, hdr_w, hdr_h)
+    s = pygame.Surface((hdr_w, hdr_h), pygame.SRCALPHA)
+    s.fill((0, 25, 70, 200))
+    surf.blit(s, hdr_rect.topleft)
+    pygame.draw.rect(surf, GOLD, hdr_rect, 2, border_radius=4)
+    
+    hdr = font_header.render("Menu Principal", True, WHITE)
+    surf.blit(hdr, (hdr_rect.centerx - hdr.get_width() // 2, PANEL_TOP + 9))
+
     for i, name in enumerate(MENU_ITEMS):
         y = ITEM_START_Y + i * ITEM_STEP
-        col = MENU_HOV if i == hovered else WHITE
-        text = font_menu.render(name, True, col)
-        x = OVERLAY_W // 2 - text.get_width() // 2
-        surf.blit(text, (x, y))
+        is_hov = (i == hovered)
+        if is_hov:
+            bg = pygame.Surface((hdr_w, 48), pygame.SRCALPHA)
+            bg.fill((255, 200, 0, 60))
+            surf.blit(bg, (hdr_x, y - 5))
+            pygame.draw.line(surf, GOLD, (hdr_x, y + 40), (hdr_x + hdr_w, y + 40), 1)
+        
+        col    = MENU_HOV if is_hov else WHITE
+        shadow = font_menu.render(name, True, BLACK)
+        text   = font_menu.render(name, True, col)
+        cx     = OVERLAY_W // 2
+        sx     = cx - text.get_width() // 2
+        surf.blit(shadow, (sx + 2, y + 2))
+        surf.blit(text,   (sx,     y))
 
 def draw_error(surf, msg):
     if not msg:
         return
-    lbl = font_err.render(msg, True, RED_ERR)
-    surf.blit(lbl, (20, HEIGHT - 40))
+    lbl = font_err.render(msg, True, WHITE)
+    bg = pygame.Surface((lbl.get_width() + 20, 26), pygame.SRCALPHA)
+    bg.fill((180, 30, 30, 210))
+    x = OVERLAY_W // 2 - bg.get_width() // 2
+    y = HEIGHT - 60
+    surf.blit(bg, (x, y))
+    surf.blit(lbl, (x + 10, y + 5))
 
-# ─── Lançamento do jogo (CORRIGIDO) ─────────────────────────────────────────
 def launch_game():
     global error_msg, error_timer
+    path = find_main()
+    if path is None:
+        error_msg = "main.py nao encontrado na pasta Game/"
+        error_timer = 180
+        return
 
+    game_dir = os.path.dirname(path)
     try:
-        from jogo.main import main  # ajuste se o nome for diferente
+        subprocess.Popen([sys.executable, path], cwd=game_dir)
         pygame.quit()
-        main()
+        sys.exit(0)
     except Exception as e:
         error_msg = f"Erro ao iniciar: {e}"
         error_timer = 180
-        print(f"[ERRO] {e}")
 
-# ─── Loop principal ─────────────────────────────────────────────────────────
+# ─── Loop ─────────────────────────────────────────────────────────────────────
 running = True
 while running:
     dt = clock.tick(60) / 1000.0
     time_val += dt
+    if error_timer > 0:
+        error_timer -= 1
+    else:
+        error_msg = ""
 
     mx, my = pygame.mouse.get_pos()
+    hdr_x = (OVERLAY_W - 330) // 2
 
     hovered_item = -1
     for i in range(len(MENU_ITEMS)):
         y = ITEM_START_Y + i * ITEM_STEP
-        if OVERLAY_W // 2 - 150 <= mx <= OVERLAY_W // 2 + 150 and y <= my <= y + 40:
+        if hdr_x <= mx <= hdr_x + 330 and y - 5 <= my <= y + 46:
             hovered_item = i
+            break
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if hovered_item == 1:  # Novo Jogo
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if hovered_item in (0, 1): # Continuar ou Novo Jogo
                 launch_game()
-            elif hovered_item == 2:  # Sair
+            elif hovered_item == 2:    # Sair
                 running = False
 
     draw_background(screen)
