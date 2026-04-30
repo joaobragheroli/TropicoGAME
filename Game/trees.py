@@ -139,6 +139,13 @@ class TreeManager:
             else:
                 _draw_tropical(self.tree_surf, px, py, variant % 3, self.shadow_surf)
 
+    def remove_tree(self, tx, ty):
+        """Remove uma árvore na posição (tx, ty) e re-renderiza as surfaces."""
+        self.trees = [(x, y, v) for (x, y, v) in self.trees if not (x == tx and y == ty)]
+        self.shadow_surf.fill((0, 0, 0, 0))
+        self.tree_surf.fill((0, 0, 0, 0))
+        self._render_all()
+
     def draw(self, screen):
         screen.blit(self.shadow_surf, (0, 0))
         screen.blit(self.tree_surf,   (0, 0))

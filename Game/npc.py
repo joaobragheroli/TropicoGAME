@@ -35,6 +35,10 @@ class NPC:
         self.facing = "down"
         self.anim_frame = 0
         self.anim_timer = 0
+        # Estado social
+        self.has_home  = False
+        self.has_job   = False
+        self.happiness = 50   # 0-100
 
     def _random_walkable(self):
         tiles = []
@@ -91,6 +95,15 @@ class NPC:
             if self.wait <= 0:
                 self._pick_destination()
                 self.wait = random.randint(40, 100)
+
+    def update_social(self, food_ratio, modifier=0):
+        """Recalcula a felicidade individual com base em moradia, emprego e comida."""
+        score = 0
+        if self.has_home: score += 50
+        if self.has_job:  score += 15
+        score += int(min(1.0, food_ratio) * 35)
+        score += modifier
+        self.happiness = max(0, min(100, score))
 
     def draw(self, screen):
         px = self.x
