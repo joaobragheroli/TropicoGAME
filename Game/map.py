@@ -18,6 +18,10 @@ class Map:
             2: pygame.image.load(os.path.join(ASSETS_DIR, "areia.jpg"))
         }
 
+        # Sea foam for animated waves
+        self.foam_surf = pygame.Surface((12, 3), pygame.SRCALPHA)
+        self.foam_surf.fill((255, 255, 255, 70))
+
     def generate_island(self):
         # 0 = água/mar
         # 1 = grama (centro da ilha)
@@ -122,7 +126,16 @@ class Map:
                 self.grid[y][x] = 0
 
     def draw(self, screen):
+        import math
+        time_s = pygame.time.get_ticks() / 1000.0
+        
         for y in range(self.height):
             for x in range(self.width):
                 tile = self.grid[y][x]
                 screen.blit(self.sprites[tile], (x * self.tile_size, y * self.tile_size))
+                
+                # Animated sea waves/foam over water
+                if tile == 0:
+                    wave = math.sin(time_s * 1.5 + x * 0.4 + y * 0.3)
+                    if wave > 0.85:
+                        screen.blit(self.foam_surf, (x * self.tile_size + 2, y * self.tile_size + 6))

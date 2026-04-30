@@ -1,9 +1,10 @@
-import pygame, sys
+import pygame, sys, math
 from map import Map
 from building import Building, BuildingSystem
 from npc import NPC
 from boat import Boat
 from trees import TreeManager, TREE_POSITIONS
+from achievements import AchievementSystem
 
 pygame.init()
 
@@ -19,7 +20,7 @@ SCREEN_HEIGHT = MAP_HEIGHT * TILE_SIZE
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
 pygame.display.set_caption("Ilha Tropico Simplificada")
 clock  = pygame.time.Clock()
-font   = pygame.font.SysFont(None, 24)
+font   = pygame.font.SysFont("segoeui", 26, bold=True)
 
 # Objetos do jogo
 game_map = Map(width=MAP_WIDTH, height=MAP_HEIGHT, tile_size=TILE_SIZE)
@@ -27,6 +28,7 @@ trees    = TreeManager(game_map.grid, tile_size=TILE_SIZE)
 buildings = []
 npcs     = [NPC(game_map.grid) for _ in range(12)]
 boat     = Boat(tile_size=TILE_SIZE)
+achievements = AchievementSystem()
 
 # Sistema de construção
 build_sys = BuildingSystem(game_map.grid, tile_size=TILE_SIZE)
@@ -80,6 +82,7 @@ while True:
             money      += dm
             population += dp
             food       += df
+            achievements.add_xp(abs(dm)) # Add XP based on construction cost!
 
     # LÓGICA DE EXPORTAÇÃO E PARTIDA
     if boat.is_docked and not has_traded:
@@ -88,6 +91,7 @@ while True:
             money += export * 4
             food = 25
             has_traded = True
+            achievements.add_xp(export * 2) # Add XP for trading!
             
             # Comanda a saída do navio
             boat.leave()
@@ -99,6 +103,7 @@ while True:
     for npc in npcs:
         npc.update()
     boat.update()
+    achievements.update(population, money, food)
 
     # Desenho
     screen.fill((0, 0, 0))
@@ -112,13 +117,42 @@ while True:
 
     build_sys.draw_preview(screen)
 
-    # HUD
-    pop_t   = font.render(f"Pop: {population}", True, (255, 255, 255))
-    food_t  = font.render(f"Comida: {food}",     True, (150, 255, 150))
-    money_t = font.render(f"Tesouro: ${money}",  True, (255, 255, 0))
-    screen.blit(pop_t,   (15, 15))
-    screen.blit(food_t,  (15, 40))
-    screen.blit(money_t, (15, 65))
+    # Day / Night Cycle Overlay
+    time_ms = pygame.time.get_ticks()
+    # 1 minuto = 60000 ms. So cycle = time_ms % 60000 / 60000.0
+    cycle = (time_ms % 60000) / 60000.0
+    # Use sine wave for smooth transition. Peak night at cycle=0.5
+    darkness = max(0, math.sin(cycle * math.pi * 2 - math.pi/2)) 
+    if darkness > 0:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        alpha = int(darkness * 140) # Max darkness alpha is 140 (not pitch black)
+        overlay.fill((10, 10, 40, alpha)) # Deep purple/blue night tint
+        screen.blit(overlay, (0, 0))
+
+
+
+    # HUD - Fundo do HUD
+    hud_panel = pygame.Surface((220, 110), pygame.SRCALPHA)
+    pygame.draw.rect(hud_panel, (20, 20, 30, 200), hud_panel.get_rect(), border_radius=10)
+    pygame.draw.rect(hud_panel, (200, 180, 50, 255), hud_panel.get_rect(), 2, border_radius=10)
+    screen.blit(hud_panel, (10, 10))
+
+    # Textos com sombra
+    texts = [
+        (f"👥 Pop: {population}", (255, 255, 255)),
+        (f"🍞 Comida: {food}", (150, 255, 150)),
+        (f"💰 Tesouro: ${money}", (255, 215, 0))
+    ]
+    
+    for i, (txt, color) in enumerate(texts):
+        # Sombra
+        shadow = font.render(txt, True, (0, 0, 0))
+        screen.blit(shadow, (22, 22 + i * 30))
+        # Texto principal
+        surf = font.render(txt, True, color)
+        screen.blit(surf, (20, 20 + i * 30))
+
+    achievements.draw(screen, cycle)
 
     build_sys.draw_hud(screen, font, money)
     pygame.display.flip()

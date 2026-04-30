@@ -64,6 +64,12 @@ class Building:
         roof_c = info["roof"]
         r      = self.rect
 
+        # Draw Shadow
+        shadow_rect = pygame.Rect(r.x + 6, r.y + 6, r.width, r.height)
+        shadow_surf = pygame.Surface((r.width, r.height), pygame.SRCALPHA)
+        shadow_surf.fill((0, 0, 0, 80)) # Semi-transparent black
+        screen.blit(shadow_surf, shadow_rect.topleft)
+
         # Paredes
         pygame.draw.rect(screen, color, r)
 
