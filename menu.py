@@ -1,7 +1,8 @@
 import pygame
 import sys
 import os
-import subprocess
+from utils import resource_path
+from main import run_game
 
 pygame.init()
 
@@ -9,14 +10,6 @@ WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Menu Principal - Tropico Island")
 clock = pygame.time.Clock()
-
-# ─── Função para assets (ESSENCIAL pro .exe) ────────────────────────────────
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 # ─── Paleta ───────────────────────────────────────────────────────────────────
 GOLD      = (255, 210,  50)
@@ -37,25 +30,8 @@ font_err    = pygame.font.SysFont("Arial",   13)
 PIXEL_SIZE  = 38
 font_menu   = pygame.font.Font(None, PIXEL_SIZE)
 
-# ─── Caminhos ─────────────────────────────────────────────────────────────────
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def find_main():
-    candidates = [
-        os.path.join(THIS_DIR, "..", "Game", "main.py"),
-        os.path.join(THIS_DIR, "Game", "main.py"),
-        os.path.join(THIS_DIR, "main.py"),
-    ]
-    for p in candidates:
-        norm = os.path.normpath(p)
-        if os.path.isfile(norm):
-            return norm
-    return None
-
-GAME_PATH = find_main()
-
 # ─── Background ───────────────────────────────────────────────────────────────
-BG_PATH = resource_path("Menu/fundo-menu.png")
+BG_PATH = resource_path("fundo-menu.png")
 try:
     bg_raw = pygame.image.load(BG_PATH)
     bg_img = pygame.transform.smoothscale(bg_raw, (WIDTH, HEIGHT))
@@ -146,19 +122,17 @@ def draw_error(surf, msg):
     surf.blit(lbl, (x + 10, y + 5))
 
 def launch_game():
-    global error_msg, error_timer
-    path = find_main()
-    if path is None:
-        error_msg = "main.py nao encontrado na pasta Game/"
-        error_timer = 180
-        return
-
-    game_dir = os.path.dirname(path)
+    print("Launching game...")
     try:
-        subprocess.Popen([sys.executable, path], cwd=game_dir)
-        pygame.quit()
-        sys.exit(0)
+        run_game()
+        print("Returned from game.")
+        # Ao voltar do jogo, precisamos resetar o modo de vídeo do menu
+        global screen
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Menu Principal - Tropico Island")
     except Exception as e:
+        print(f"Error launching game: {e}")
+        global error_msg, error_timer
         error_msg = f"Erro ao iniciar: {e}"
         error_timer = 180
 
@@ -186,6 +160,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            print(f"Click at {event.pos}, hovered_item: {hovered_item}")
             if hovered_item in (0, 1): # Continuar ou Novo Jogo
                 launch_game()
             elif hovered_item == 2:    # Sair

@@ -1,5 +1,6 @@
 import pygame
 import os
+from utils import resource_path
 
 TILE_SIZE = 16
 
@@ -10,9 +11,8 @@ class Boat:
     def __init__(self, tile_size=TILE_SIZE):
         self.tile_size = tile_size
 
-        BASE_DIR = os.path.dirname(__file__)
-        clean_path = os.path.join(BASE_DIR, "assets", "navio1_clean.png")
-        orig_path  = os.path.join(BASE_DIR, "assets", "navio1.png")
+        clean_path = resource_path(os.path.join("assets", "navio1_clean.png"))
+        orig_path  = resource_path(os.path.join("assets", "navio1.png"))
         img_path   = clean_path if os.path.exists(clean_path) else orig_path
         raw = pygame.image.load(img_path).convert_alpha()
 

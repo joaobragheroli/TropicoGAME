@@ -1,5 +1,6 @@
 import pygame
 import os
+from utils import resource_path
 
 class Map:
     def __init__(self, width=46, height=36, tile_size=16):
@@ -9,13 +10,10 @@ class Map:
         self.grid = [[0 for _ in range(width)] for _ in range(height)]
         self.generate_island()
 
-        BASE_DIR = os.path.dirname(__file__)
-        ASSETS_DIR = os.path.join(BASE_DIR, "assets")
-
         self.sprites = {
-            0: pygame.image.load(os.path.join(ASSETS_DIR, "mar1.jpeg")),
-            1: pygame.image.load(os.path.join(ASSETS_DIR, "grama.png")),
-            2: pygame.image.load(os.path.join(ASSETS_DIR, "areia.jpg"))
+            0: pygame.image.load(resource_path(os.path.join("assets", "mar1.jpeg"))),
+            1: pygame.image.load(resource_path(os.path.join("assets", "grama.png"))),
+            2: pygame.image.load(resource_path(os.path.join("assets", "areia.jpg")))
         }
 
         # Sea foam for animated waves
