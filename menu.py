@@ -31,7 +31,7 @@ PIXEL_SIZE  = 38
 font_menu   = pygame.font.Font(None, PIXEL_SIZE)
 
 # ─── Background ───────────────────────────────────────────────────────────────
-BG_PATH = resource_path("fundo-menu.png")
+BG_PATH = resource_path("assets/fundo-menu.png")
 try:
     bg_raw = pygame.image.load(BG_PATH)
     bg_img = pygame.transform.smoothscale(bg_raw, (WIDTH, HEIGHT))

@@ -45,11 +45,12 @@ BUILDING_TYPES = {
 class Building:
     """Representa um prédio já construído no mapa."""
 
-    def __init__(self, tile_x, tile_y, btype, tile_size=16):
+    def __init__(self, tile_x, tile_y, btype, tile_size=16, owner="player"):
         self.tile_x    = tile_x
         self.tile_y    = tile_y
         self.btype     = btype
         self.tile_size = tile_size
+        self.owner     = owner   # "player" ou "rival"
         info           = BUILDING_TYPES[btype]
         self.size      = info["size"]
         px             = tile_x * tile_size
@@ -108,6 +109,20 @@ class Building:
         )
         pygame.draw.rect(screen, (173, 216, 230), w_rect)
         pygame.draw.rect(screen, dark, w_rect, 1)
+
+        # Bandeirinha do dono (player = azul, rival = vermelho)
+        if self.owner == "rival":
+            flag_color = (220, 30, 30)
+        else:
+            flag_color = (30, 100, 220)
+        pole_x = r.right - 5
+        pole_y = r.top
+        pygame.draw.line(screen, (100, 80, 60), (pole_x, pole_y), (pole_x, pole_y + 7), 1)
+        pygame.draw.polygon(screen, flag_color, [
+            (pole_x, pole_y),
+            (pole_x + 5, pole_y + 2),
+            (pole_x, pole_y + 4),
+        ])
 
 
 class BuildingSystem:
