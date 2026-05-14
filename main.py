@@ -47,10 +47,10 @@ def run_game():
 
     # Eventos Customizados
     PROD_EVENT = pygame.USEREVENT + 1
-    pygame.time.set_timer(PROD_EVENT, 5000) 
+    pygame.time.set_timer(PROD_EVENT, 1000) 
 
     BOAT_SPAWN_EVENT = pygame.USEREVENT + 2
-    pygame.time.set_timer(BOAT_SPAWN_EVENT, 10000, loops=1) 
+    # Barco não usa mais timer inicial, controlado pelo ciclo do dia
 
     # Alerta de Eventos
     alerta_sistema = AlertaEvento(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -59,8 +59,8 @@ def run_game():
 
     # Recursos iniciais
     population = 12
-    food       = 50
-    money      = 150   
+    food       = 50.0
+    money      = 150.0   
     has_traded = False
     happiness  = 0     
     event_happiness_modifier = 0  
@@ -70,13 +70,39 @@ def run_game():
     game_over       = False
     game_over_cause = ""
     game_start_time = pygame.time.get_ticks()
-    GRACE_PERIOD    = 80_000   
     UNHAPPY_LIMIT   = 30_000   
     unhappy_since   = None     
 
+    # Sistema de Dia e Noite
+    game_time = 6.0
+    day_count = 1
+    boat_has_spawned_today = False
+
     # Loop principal
     while True:
-        clock.tick(60)
+        dt = clock.tick(60) / 1000.0
+
+        # Atualizar tempo do jogo
+        if 6.0 <= game_time < 18.0:
+            # Dia = 45 segundos reais para 12 horas do jogo
+            game_time += (12.0 / 45.0) * dt
+            is_night = False
+        else:
+            # Noite = 15 segundos reais para 12 horas do jogo
+            game_time += (12.0 / 15.0) * dt
+            is_night = True
+            
+        if game_time >= 24.0:
+            game_time -= 24.0
+            day_count += 1
+            boat_has_spawned_today = False
+            
+        if day_count >= 2 and game_time >= 6.0 and not boat_has_spawned_today:
+            pygame.event.post(pygame.event.Event(BOAT_SPAWN_EVENT))
+            boat_has_spawned_today = True
+
+        for npc in npcs:
+            npc.is_night = is_night
 
         if game_over:
             for ev in pygame.event.get():
@@ -117,13 +143,20 @@ def run_game():
                     food += ev["efeito"]["food"]
                     event_happiness_modifier += ev["efeito"]["happiness"]
                 
+                _dbg_skip = pygame.Rect(SCREEN_WIDTH - 115, 80, 105, 28)
+                if _dbg_skip.collidepoint(event.pos):
+                    game_time = 6.0
+                    day_count += 1
+                    boat_has_spawned_today = False
+                    
                 alerta_sistema.checar_clique(event.pos)
                 
             if event.type == RANDOM_EVENT_TIMER:
-                ev = disparar_evento_aleatorio(alerta_sistema)
-                money += ev["efeito"]["money"]
-                food += ev["efeito"]["food"]
-                event_happiness_modifier += ev["efeito"]["happiness"]
+                if day_count % 2 == 0:
+                    ev = disparar_evento_aleatorio(alerta_sistema)
+                    money += ev["efeito"]["money"]
+                    food += ev["efeito"]["food"]
+                    event_happiness_modifier += ev["efeito"]["happiness"]
 
             if event.type == BOAT_SPAWN_EVENT:
                 boat.reset_position() # Garante que volta pro fundo da tela
@@ -135,11 +168,11 @@ def run_game():
 
                 for b in buildings:
                     if b.btype == "farm" and b.active:
-                        food += 8
+                        food += 8.0 / 5.0
                     if b.btype == "factory" and b.active:
-                        money += 20
+                        money += 20.0 / 5.0
 
-                food = max(0, food - (population // 3))
+                food = max(0.0, food - (population / 15.0))
 
                 total    = len(npcs)
                 housed   = sum(1 for n in npcs if n.has_home)
@@ -169,8 +202,7 @@ def run_game():
                 rival_score  = int(rival.food * 0.5 + r_houses * 5 * 0.5 + r_factories * 3)
 
                 _now = pygame.time.get_ticks()
-                _in_grace = (_now - game_start_time) < GRACE_PERIOD
-                if not _in_grace:
+                if day_count >= 3:
                     if happiness < 50:
                         if unhappy_since is None:
                             unhappy_since = _now
@@ -191,6 +223,14 @@ def run_game():
                 money      += dm
                 population += dp
                 food       += df
+                
+                # Sincroniza NPCs visuais com a população
+                if dp > 0:
+                    for _ in range(dp):
+                        npcs.append(NPC(game_map.grid))
+                elif dp < 0:
+                    for _ in range(min(len(npcs), -dp)):
+                        npcs.pop()
 
         if boat.is_docked:
             if not has_traded:
@@ -241,15 +281,23 @@ def run_game():
         for npc in npcs:
             npc.draw(screen)
 
-        # Ciclo Dia/Noite
-        time_ms = pygame.time.get_ticks()
-        cycle = (time_ms % 60000) / 60000.0
-        darkness = max(0, math.sin(cycle * math.pi * 2 - math.pi/2)) 
-        if darkness > 0:
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            alpha = int(darkness * 140) 
-            overlay.fill((10, 10, 40, alpha)) 
-            screen.blit(overlay, (0, 0))
+        # Ciclo Dia/Noite Visual
+        # Escurece gradualmente à noite (18h às 6h)
+        if is_night:
+            if game_time >= 18.0:
+                # 18.0 até 24.0
+                progress = (game_time - 18.0) / 6.0
+            else:
+                # 0.0 até 6.0
+                progress = (game_time + 6.0) / 12.0
+            
+            # Curva de escurecimento (máximo no meio da noite)
+            darkness = math.sin(progress * math.pi)
+            if darkness > 0:
+                overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                alpha = int(darkness * 160) 
+                overlay.fill((10, 10, 40, alpha)) 
+                screen.blit(overlay, (0, 0))
 
         build_sys.draw_preview(screen)
 
@@ -262,8 +310,8 @@ def run_game():
 
         hud_texts = [
             (f"👥 Pop: {population}", (255, 255, 255)),
-            (f"🍞 Comida: {food}", (150, 255, 150)),
-            (f"💰 Tesouro: ${money}", (255, 215, 0))
+            (f"🍞 Comida: {int(food)}", (150, 255, 150)),
+            (f"💰 Tesouro: ${int(money)}", (255, 215, 0))
         ]
         
         for i, (txt, color) in enumerate(hud_texts):
@@ -274,6 +322,8 @@ def run_game():
 
         happy_label = small_font.render(f"Felicidade: {happiness}%", True, (220, 220, 220))
         screen.blit(happy_label, (20, 110))
+
+
         bar_x, bar_y, bar_w, bar_h = 20, 128, 220, 8
         pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_w, bar_h), border_radius=5)
         fill_w = max(0, int(bar_w * happiness / 100))
@@ -284,7 +334,8 @@ def run_game():
         else:
             bar_color = ( 60, 200,  90)
         if fill_w > 0:
-            pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
+            rad_h = min(4, fill_w // 2, bar_h // 2)
+            pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=rad_h)
         pygame.draw.rect(screen, (180, 180, 180), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=4)
 
         total_npc  = len(npcs)
@@ -320,6 +371,19 @@ def run_game():
         pygame.draw.rect(screen, (45, 120, 180), _dbg_ev_rect, 1, border_radius=4)
         _dbg_ev_t = _df.render("[DEV] EVENTO", True, (80, 180, 220))
         screen.blit(_dbg_ev_t, (_dbg_ev_rect.centerx - _dbg_ev_t.get_width() // 2, _dbg_ev_rect.centery - _dbg_ev_t.get_height() // 2))
+
+        # Botão Skip Dia
+        # _dbg_skip_rect = pygame.Rect(SCREEN_WIDTH - 115, 80, 105, 28)
+        # pygame.draw.rect(screen, (40, 80, 15), _dbg_skip_rect, border_radius=4)
+        # pygame.draw.rect(screen, (120, 180, 45), _dbg_skip_rect, 1, border_radius=4)
+        # _dbg_skip_t = _df.render("[DEV] SKIP DIA", True, (180, 220, 80))
+        # screen.blit(_dbg_skip_t, (_dbg_skip_rect.centerx - _dbg_skip_t.get_width() // 2, _dbg_skip_rect.centery - _dbg_skip_t.get_height() // 2))
+
+        # Adicionar Dia e Hora (Abaixo dos botões de debug)
+        time_hours = int(game_time)
+        clock_str = f"Dia {day_count} - {time_hours:02d}h"
+        clock_label = small_font.render(clock_str, True, (200, 220, 255))
+        screen.blit(clock_label, (SCREEN_WIDTH - clock_label.get_width() - 10, 115))
         
         pygame.display.flip()
 
@@ -337,11 +401,13 @@ def draw_rivalry_bar(screen, font, player_score, rival_score, screen_width):
     r_frac = rival_score  / total
     p_w = max(0, int(bar_w * p_frac) - 2)
     if p_w > 0:
-        pygame.draw.rect(screen, (50, 120, 230), (bar_x, bar_y, p_w, bar_h), border_radius=3)
+        rad_p = min(3, p_w // 2, bar_h // 2)
+        pygame.draw.rect(screen, (50, 120, 230), (bar_x, bar_y, p_w, bar_h), border_radius=rad_p)
     r_w = max(0, int(bar_w * r_frac) - 2)
     if r_w > 0:
+        rad_r = min(3, r_w // 2, bar_h // 2)
         rx = bar_x + bar_w - r_w
-        pygame.draw.rect(screen, (210, 45, 45), (rx, bar_y, r_w, bar_h), border_radius=3)
+        pygame.draw.rect(screen, (210, 45, 45), (rx, bar_y, r_w, bar_h), border_radius=rad_r)
     pygame.draw.rect(screen, (150, 150, 180), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=3)
     lbl_p = font.render("👑 Tu", True, (100, 160, 255))
     lbl_r = font.render("Rival 🔴", True, (255, 100, 100))
@@ -351,13 +417,17 @@ def draw_rivalry_bar(screen, font, player_score, rival_score, screen_width):
 def assign_housing_and_jobs(npcs, buildings):
     for npc in npcs:
         npc.has_home = False
+        npc.home_x   = None
+        npc.home_y   = None
         npc.has_job  = False
     npc_idx = 0
     for b in buildings:
-        cap = BUILDING_TYPES[b.btype]["capacity"]
+        cap = BUILDING_TYPES[b.btype].get("capacity", 0)
         for _ in range(cap):
             if npc_idx < len(npcs):
                 npcs[npc_idx].has_home = True
+                npcs[npc_idx].home_x = b.rect.x
+                npcs[npc_idx].home_y = b.rect.y
                 npc_idx += 1
     job_idx = 0
     for b in buildings:

@@ -27,16 +27,21 @@ class NPC:
         # Destino atual
         self.dest_x = self.x
         self.dest_y = self.y
-        # Velocidade de movimento suave (pixels por frame)
-        self.speed = random.choice([1, 1, 2])
+        # Velocidade base
+        self.base_speed = random.choice([1, 1, 2])
+        self.speed = self.base_speed
         # Timer para escolher novo destino
         self.wait = random.randint(30, 120)
         # Direção para animação
         self.facing = "down"
         self.anim_frame = 0
         self.anim_timer = 0
-        # Estado social
+        # Estado social e noite
         self.has_home  = False
+        self.home_x    = None
+        self.home_y    = None
+        self.is_sleeping = False
+        self.is_night  = False
         self.has_job   = False
         self.happiness = 50   # 0-100
 
@@ -69,6 +74,20 @@ class NPC:
         self.wait = random.randint(30, 90)
 
     def update(self):
+        if self.is_night:
+            if self.has_home and self.home_x is not None:
+                self.dest_x = self.home_x
+                self.dest_y = self.home_y
+                self.speed = self.base_speed
+            else:
+                self.speed = self.base_speed * 0.4 # Sem casa anda bem devagar
+        else:
+            self.speed = self.base_speed
+            self.is_sleeping = False
+
+        if self.is_sleeping:
+            return
+
         # Mover suavemente em direção ao destino
         moved = False
         if self.x < self.dest_x:
@@ -91,6 +110,9 @@ class NPC:
 
         # Chegou ao destino — esperar ou escolher novo
         if self.x == self.dest_x and self.y == self.dest_y:
+            if self.is_night and self.has_home and self.x == self.home_x and self.y == self.home_y:
+                self.is_sleeping = True
+                return
             self.wait -= 1
             if self.wait <= 0:
                 self._pick_destination()
@@ -106,6 +128,9 @@ class NPC:
         self.happiness = max(0, min(100, score))
 
     def draw(self, screen):
+        if self.is_sleeping:
+            return
+
         px = self.x
         py = self.y
         # Offset de caminhada (balanço)

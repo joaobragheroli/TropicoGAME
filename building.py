@@ -212,6 +212,11 @@ class BuildingSystem:
                 tile_y = my // self.tile_size
                 for b in list(buildings):
                     if (tile_x, tile_y) in set(b.occupied_tiles()):
+                        if b.owner != "player":
+                            self._blocked_msg = "Não pode demolir do rival!"
+                            self._blocked_timer = 120
+                            return False
+                        
                         info = BUILDING_TYPES[b.btype]
                         self._pending_refunds.append(
                             (info["cost"] // 2, -info["pop"], -info["food"]))
