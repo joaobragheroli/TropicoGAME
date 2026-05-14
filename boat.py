@@ -29,8 +29,8 @@ class Boat:
         self.target_y = float(STOP_TILE_Y * tile_size - self.boat_h // 2)
 
         # Velocidade
-        self.speed     = 2.0
-        self.min_speed = 0.3
+        self.speed     = 5.0
+        self.min_speed = 1.0
 
         # Balanco quando atracado
         self.bob_offset = 0.0

@@ -28,10 +28,10 @@ class NPC:
         self.dest_x = self.x
         self.dest_y = self.y
         # Velocidade base
-        self.base_speed = random.choice([1, 1, 2])
+        self.base_speed = random.choice([2, 2, 3])
         self.speed = self.base_speed
         # Timer para escolher novo destino
-        self.wait = random.randint(30, 120)
+        self.wait = random.randint(15, 60)
         # Direção para animação
         self.facing = "down"
         self.anim_frame = 0
@@ -71,7 +71,7 @@ class NPC:
                     if dy == -1: self.facing = "up"
                     return
         # Se nenhum adjacente disponível, fica parado
-        self.wait = random.randint(30, 90)
+        self.wait = random.randint(15, 45)
 
     def update(self):
         if self.is_night:
@@ -102,7 +102,7 @@ class NPC:
         # Animação de caminhada
         if moved:
             self.anim_timer += 1
-            if self.anim_timer >= 10:
+            if self.anim_timer >= 5:
                 self.anim_timer = 0
                 self.anim_frame = (self.anim_frame + 1) % 2
         else:
@@ -116,7 +116,7 @@ class NPC:
             self.wait -= 1
             if self.wait <= 0:
                 self._pick_destination()
-                self.wait = random.randint(40, 100)
+                self.wait = random.randint(20, 50)
 
     def update_social(self, food_ratio, modifier=0):
         """Recalcula a felicidade individual com base em moradia, emprego e comida."""
