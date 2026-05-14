@@ -45,7 +45,7 @@ time_val     = 0.0
 error_msg    = ""
 error_timer  = 0
 
-MENU_ITEMS   = ["Continuar", "Novo Jogo", "Sair do Jogo"]
+MENU_ITEMS   = ["Continuar", "Novo Jogo", "Tutorial", "Sair do Jogo"]
 
 PANEL_TOP    = 195
 ITEM_START_Y = 245
@@ -121,6 +121,20 @@ def draw_error(surf, msg):
     surf.blit(bg, (x, y))
     surf.blit(lbl, (x + 10, y + 5))
 
+def launch_tutorial():
+    global screen, error_msg, error_timer
+    print("Launching tutorial...")
+    try:
+        from tutorial.tutorial_view import run_tutorial
+        run_tutorial(screen, WIDTH, HEIGHT)
+        # Ao voltar, precisamos resetar o titulo e modo de video da janela
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Menu Principal - Tropico Island")
+    except Exception as e:
+        print(f"Error launching tutorial: {e}")
+        error_msg = f"Erro no tutorial: {e}"
+        error_timer = 180
+
 def launch_game():
     print("Launching game...")
     try:
@@ -163,7 +177,9 @@ while running:
             print(f"Click at {event.pos}, hovered_item: {hovered_item}")
             if hovered_item in (0, 1): # Continuar ou Novo Jogo
                 launch_game()
-            elif hovered_item == 2:    # Sair
+            elif hovered_item == 2:    # Tutorial
+                launch_tutorial()
+            elif hovered_item == 3:    # Sair
                 running = False
 
     draw_background(screen)
